@@ -1,0 +1,242 @@
+---
+title: "NYC Schools Perceptions"
+author: "Sofiane Ikkour"
+output: html_document
+---
+
+### **Context:**  
+In this project we're going to take a look at and analyze some surveys designed to gauge parent, student and teacher perceptions of the quality of New York City schools. Survey results provide insight into a school's learning environment and contribute of diversification that goes beyond test scores. 
+
+### **Objective:**  
+Our goal in this project is to investigate on how student, parent and teacher perceptions appear to be related to demographic and academic success metrics and find out if students, parents and teachers have similar perceptions of NYC school quality. 
+
+### **Dataset:**  
+We'll work on several datasets which are listed below:
+
+- Survey data Dictionary.xls
+- masterfile11_gened_final.xlsx
+- masterfile11_gened_final.txt
+- masterfile11_d75_final.xlsx
+- masterfile11_d75_final.txt
+- combined.csv
+
+The first file, Survey data Dictionary.xls, contains metadata that will be useful for cleaning and preparing the survey data for analysis.  
+The next two files, masterfile11_gened_final.xlsx and masterfile11_gened_final.txt, contain survey data for "general education" schools - those that do not serve populations with special needs.  
+The files, masterfile11_d75_final.xlsx and masterfile11_d75_final.txt, contain survey data for District 75 Schools, which provide exceptional education support for children with special needs such as learning and physical disabilities.  
+I downloaded the first five files from this [link](https://data.cityofnewyork.us/Education/2011-NYC-School-Survey/mnz3-dyi8).  
+The last file combined.csv, contains a list of schools with information about location, test exam scores, class sizes...  
+This last file was downloaded from [here](https://data.world/dataquest/nyc-schools-data/workspace/file?filename=combined.csv).
+
+
+**Note:** This code was written on RStudio.  
+**Packages:** readr, dplyr, tidyr, stringr, purrr, ggplot2.  
+**Programming language:** R.  
+
+
+**Read and explore the datasets:**
+
+```{r}
+# set working directory
+setwd("C:/Users/Aylan/Documents/IT/DataQuest/R/NYC Schools Perceptions/2011 data files online")
+
+# load the relevant libraries
+library(readr)
+library(dplyr)
+
+# load the combined.csv dataset
+combined <- read_csv("combined.csv", col_types = cols())
+
+# display the first few rows
+head(combined)
+```
+```{r}
+# display the number of rows and columns of the combined dataframe
+print(paste("number of rows of combined:", dim(combined)[1]))
+print(paste("number of columns of combined:", dim(combined)[2]))
+```
+
+```{r}
+# set working directory
+setwd("C:/Users/Aylan/Documents/IT/DataQuest/R/NYC Schools Perceptions/2011 data files online")
+
+# read the masterfile11_gened_final.txt and masterfile11_D75_final.txt files and save them as dataframes
+masterfile11_gened <- read_tsv("masterfile11_gened_final.txt", col_types = cols())
+masterfile11_d75 <- read_tsv("masterfile11_d75_final.txt", col_types = cols())
+
+# display the first fex rows of the masterfille11_gened dataframe
+head(masterfile11_gened)
+```
+```{r}
+# display the number of rows and columns of the masterfile11_gened dataframe
+print(paste("number of rows of masterfil11_gened:", dim(masterfile11_gened)[1]))
+print(paste("number of columns of masterfile_gened:", dim(masterfile11_gened)[2]))
+```
+
+```{r}
+# display the first few rows of the masterfille11_d75 dataframe
+head(masterfile11_d75)
+```
+```{r}
+# display the number of rows and columns of the masterfile11_gened dataframe
+print(paste("number of rows of masterfil11_d75:", dim(masterfile11_d75)[1]))
+print(paste("number of columns of masterfile_d75:", dim(masterfile11_d75)[2]))
+```
+
+**Discussion:**  
+It's quickly apparent that the dataframes above containing survey data are very large with hundreds of rows and columns. The survey data dictionary (please refer to the file) indicates that most of the variables in these dataframes provide granular information about survey responses. For example, the question s_q1a_1 contains for each school the number of students that responded to "option 1" of "question 1a". 
+Another remark we can make is about the variables in the data dictionary which end with _10. On the other hand, the variables in the dataframes we imported end with _11. This is because the data dictionary refers to the variables taken from the previous year, 2010. So this is one of the challenges we have to deal with while working with this dataset. 
+After quickly examining the variables descriptions we can see that the following topics are involved in the study: Safety and respect, communication, engagement and academic expectations. 
+
+We are interested in studying the relationships between school quality perceptions and SAT scores. So we need to focus on the aggregate scores for each school calculated from the survey responses. Therefore, we can simplify our dataframes by creating new dataframes that contain only variables aggregating scores. In addition, we will retain the variable dbn since it will help us combine the survey dataframes with the combined dataframe. 
+Finally, we will filter the dataframes by the schooltype variable in order to retain only the observations we need that relate to "High School"
+
+```{r}
+# simplify the masterfile11_gened dataframe by including the useful variables only
+masterfile11_gened_filtered <- masterfile11_gened %>%
+  select(dbn:schooltype, saf_p_11:aca_tot_11) %>%
+  filter(schooltype == "High School")
+
+# display the few first rows
+print(head(masterfile11_gened_filtered))
+```
+```{r}
+# display the number of rows and columns of the masterfile11_gened_filtered dataframe
+print(paste("number of rows of masterfil11_gened_filtered:", dim(masterfile11_gened_filtered)[1]))
+print(paste("number of columns of masterfile_gened_filtered:", dim(masterfile11_gened_filtered)[2]))
+```
+```{r}
+# simplify the masterfile11_d75 dataframe by including the useful variables only
+masterfile11_d75_filtered <- masterfile11_d75 %>%
+  select(dbn:schooltype, saf_p_11:aca_tot_11)
+
+# display the few first rows
+head(masterfile11_d75_filtered)
+```
+```{r}
+# display the number of rows and columns of the masterfile11_gened_filtered dataframe
+print(paste("number of rows of masterfil11_d75_filtered:", dim(masterfile11_d75_filtered)[1]))
+print(paste("number of columns of masterfile11_d75_filtered:", dim(masterfile11_d75_filtered)[2]))
+```
+
+**Discussion:**  
+By going down from more than a thousand columns to just 23 we simplified the dataframes and working with them is now more manageable. 
+Next, we'll join these dataframes to the combined dataframe. Since we're interested in relationships between survey data and the combined dataframe, we'll retain observations from survey data that correspond to the combined dataframe. However, before we do that, we need to combine the survey dataframe into a single dataframe by row.
+```{r}
+# combine the masterfile11_gened_filtered and masterfile11_d75_filtered dataframes by row
+masterfile11_gened_d75 <- bind_rows(masterfile11_gened_filtered, masterfile11_d75_filtered)
+
+# display the first few rows
+head(masterfile11_gened_d75)
+```
+```{r}
+# join the new dataframe to the combined dataframe using the left_join() function and the common variable dbn
+# we can notice that the name of column dbn is lowercase in the masterfile11_gened_d75 dataframe and uppercase in the combined dataframe
+# we need to rename one of the columns before joining the two dataframes
+# let's rename the dbn column with lowercase letters and convert it to uppercase
+masterfile11_gened_d75 <- rename(masterfile11_gened_d75, DBN = dbn)
+
+# display the few first rows
+head(masterfile11_gened_d75)
+```
+```{r}
+# now that the name of the column is changed we can join the dataframe with the combined dataframe
+masterfile11_combined <- combined %>%
+  left_join(masterfile11_gened_d75, by = "DBN")
+
+# display the first few rows
+head(masterfile11_combined)
+```
+
+**Data analysis:**  
+
+Now that we have a single and clean dataframe to work with, we can begin our analysis by figuring out whether or not student, teacher and parent perceptions of NYC school quality is related to demographic and academic success metrics.
+```{r}
+# create a correlation matrix to show correlations between test scores and perceptions of school quality
+library(purrr) # load the relevant library
+cor_mat <- masterfile11_combined %>%
+  select(avg_sat_score, saf_p_11:aca_tot_11) %>%
+  cor(use = "pairwise.complete.obs")
+
+# convert the correlation matrix to a tibble
+cor_tib <- cor_mat %>%
+  as_tibble(rownames = "variable")
+
+# display the tibble
+head(cor_tib, 20)
+```
+The correlation matrix shows different levels of correlations between the variables from weak and moderate to strong correlations. Let's filter and index our tibble to identify moderate to strong relationships between the variables and avg_sat_score.
+```{r}
+cor_tib_indexed <- cor_tib %>%
+  select(variable, avg_sat_score) %>%
+  filter(avg_sat_score > 0.25 | avg_sat_score < -0.25)
+
+# display the tibble
+head(cor_tib_indexed)
+```
+We can see from the tibble above the moderate correlations between Safety and Respect scores based on students and teachers responses with the average SAT score. In addition , there is also a positive but moderate correlation between the Academic Expectations total score and the average SAT score. This indicates that test scores are positively correlated with some perceptions of school quality.  
+
+We can explore more in depth those relationships using scatter plots.
+```{r}
+library(ggplot2) # load the relevant library
+
+# create a function that creates a scatter plot
+scatter_plot <- function(x, y) {
+  ggplot(data = masterfile11_combined,
+         aes_string(x = x, y = y)) +
+    geom_point()
+}
+
+# assign the variables saf_t_11, saf_s_11, aca_s_11 and aca_tot_11 to xvar and avg_sat_score to yvar
+xvar <- cor_tib_indexed$variable[2:5]
+yvar <- "avg_sat_score"
+
+# use map2 function to plot our results
+map2(xvar, yvar, scatter_plot)
+```
+
+These scatter plots reveal very weak to no correlations at all.  
+Next, we'll investigate on whether parents, students and teachers have similar perceptions about the four school quality metrics  they were surveyed about: Safety and Respect, Communication, Engagement, Academic Expectations. We need to reshape the data for that.
+```{r}
+# reshape the dataframe so that the survey question and the score are in separate columns
+library(tidyr) # load the relevant library
+survey_data <- masterfile11_combined %>%
+  select(DBN, schoolname, schooltype, saf_p_11:aca_tot_11) %>%
+  pivot_longer(cols = c(saf_p_11:aca_tot_11),
+               names_to = "Survey_Question",
+               values_to = "Score")
+
+# display the first few rows
+head(survey_data)
+```
+```{r}
+# create two new variables response_type and metric
+library(stringr) # load the relevant library
+survey_data <- survey_data %>%
+  mutate(response_type = str_sub(Survey_Question, 4, 6)) %>%
+  mutate(metric = str_sub(Survey_Question, 1, 3)) %>%
+  mutate(response_type = case_when(
+    response_type == "_p_" ~ "parent",
+    response_type == "_t_" ~ "teacher",
+    response_type == "_s_" ~ "student",
+    TRUE                   ~ "NA")) %>%
+  mutate(metric = case_when(
+    metric == "saf" ~ "Safety and Respect",
+    metric == "com" ~ "Communication",
+    metric == "eng" ~ "Engagement",
+    TRUE            ~ "Academic Expectations"
+  ))
+
+# display the first few rows
+head(survey_data)
+```
+```{r}
+# create a boxplot to see if the responders answered differently the four questions
+survey_data %>% 
+  filter(response_type != "NA") %>%
+  ggplot(aes(x = metric, y = Score, fill = response_type)) +
+  geom_boxplot()
+```
+
+**Conclusion:**  
+The boxplots show that the responders have different perceptions about the school quality metrics with parents answering with higher scores than students and teachers in each quality metric. On the other hand, students answered with lower scores than teachers and parents in each group.  
+
